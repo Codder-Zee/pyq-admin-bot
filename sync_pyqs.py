@@ -4,7 +4,7 @@ import base64
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 ADMIN_ID = os.environ["ADMIN_ID"]
-GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
+GITHUB_TOKEN = os.environ["admin-bot-access"]
 
 TARGET_REPO = "Codder-Zee/talhathi-pyq-bot"
 TARGET_FILE = "pyq.txt"
