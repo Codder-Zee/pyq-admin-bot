@@ -5,7 +5,7 @@ import requests
 # --- Configuration ---
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 ADMIN_ID = os.environ["ADMIN_ID"]
-GITHUB_TOKEN = os.environ["admin-bot-access"]
+THUB_TOKEN = os.environ["THUB_TOKEN"]
 
 TARGET_REPO = "Codder-Zee/talhathi-pyq-bot"
 TARGET_FILE = "pyq.txt"
@@ -13,7 +13,7 @@ BRANCH = "main"
 STATE_FILE = "last_update.txt"
 
 HEADERS = {
-    "Authorization": f"token {GITHUB_TOKEN}",
+    "Authorization": f"token {THUB_TOKEN}",
     "Accept": "application/vnd.github+json",
 }
 
