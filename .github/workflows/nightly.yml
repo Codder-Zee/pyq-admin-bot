@@ -1,1 +1,35 @@
+name: Nightly PYQ Sync
 
+on:
+schedule:
+- cron: "30 17 * * *"
+workflow_dispatch:
+
+jobs:
+sync:
+runs-on: ubuntu-latest
+
+steps:
+  - uses: actions/checkout@v4
+
+  - uses: actions/setup-python@v5
+    with:
+      python-version: "3.11"
+
+  - name: Install
+    run: pip install -r requirements.txt
+
+  - name: Run Sync
+    env:
+      BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+      ADMIN_ID: ${{ secrets.ADMIN_ID }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: python sync_pyqs.py
+
+  - name: Save Offset
+    run: |
+      git config user.name github-actions
+      git config user.email github-actions@github.com
+      git add last_update.txt
+      git commit -m "update offset" || true
+      git push
