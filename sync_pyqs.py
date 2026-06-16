@@ -8,7 +8,7 @@ ADMIN_ID = os.environ["ADMIN_ID"]
 THUB_TOKEN = os.environ["THUB_TOKEN"]
 
 TARGET_REPO = "Codder-Zee/talhathi-pyq-bot"
-TARGET_FILE = "pyq.txt"
+TARGET_FILE = "pyq_data/pyq.txt"
 BRANCH = "main"
 STATE_FILE = "last_update.txt"
 
