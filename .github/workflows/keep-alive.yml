@@ -1,0 +1,28 @@
+name: Keep Repository Active
+
+on:
+  schedule:
+    - cron: "0 0 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update keep-alive
+        run: |
+          date -u +"%Y-%m-%d %H:%M:%S UTC" > last_update.txt
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add last_update.txt
+          git diff --cached --quiet || git commit -m "chore: keep repository active"
+          git push
