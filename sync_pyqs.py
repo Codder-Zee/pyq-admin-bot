@@ -1,5 +1,6 @@
 import base64
 import os
+import re
 import requests
 
 # --- Configuration ---
@@ -7,14 +8,18 @@ BOT_TOKEN = os.environ["BOT_TOKEN"]
 ADMIN_ID = os.environ["ADMIN_ID"]
 THUB_TOKEN = os.environ["THUB_TOKEN"]
 
-TARGET_REPO = "Codder-Zee/talhathi-pyq-bot"
+TARGET_REPO = "Codder-Zee/talhathi-pyq_Poll_bot"
 BRANCH = "main"
 STATE_FILE = "last_update.txt"
 
-# योग्य फाईल पाथ्स (तुमच्या गरजेनुसार .txt फॉरमॅट)
+# योग्य फाईल पाथ्स (तुमच्या गरजेनुसार .txt फॉरमॅट + नवीन 4 विषय)
 FILE_MAPPING = {
     "Marathi": "pyq_data/Marathi.txt",
     "English": "pyq_data/English.txt",
+    "Economy": "pyq_data/Economy.txt",
+    "Polity": "pyq_data/Polity.txt",
+    "History": "pyq_data/History.txt",
+    "Geography": "pyq_data/Geography.txt",
     "Other": "pyq_data/pyq.txt",
 }
 
@@ -75,12 +80,46 @@ def count_questions(text):
     return sum(1 for line in text.splitlines() if line.strip().startswith("Q:"))
 
 
+def normalize_question(q_line):
+    return re.sub(r"[\s.,?!;:'\"()\[\]{}\-_/*]+", "", q_line.lower())
+
+
+def filter_non_duplicate_messages(repo_text, messages):
+    """फाईलमध्ये आधीच असलेले Q: प्रश्न पुन्हा append होऊ नयेत म्हणून फिल्टर"""
+    existing_questions = set()
+    for line in repo_text.splitlines():
+        clean = line.strip()
+        if clean.startswith("Q:"):
+            existing_questions.add(normalize_question(clean[2:]))
+
+    unique_messages = []
+    for msg in messages:
+        q_lines = [
+            line.strip()[2:]
+            for line in msg.splitlines()
+            if line.strip().startswith("Q:")
+        ]
+        # जर मेसेजमध्ये Q: असेल आणि तो आधीच फाईलमध्ये असेल तर स्किप करा
+        if q_lines and all(normalize_question(q) in existing_questions for q in q_lines):
+            continue
+        for q in q_lines:
+            existing_questions.add(normalize_question(q))
+        unique_messages.append(msg)
+
+    return unique_messages
+
+
 def send_telegram(text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     reply_markup = {
-        "keyboard": [[{"text": "Marathi"}, {"text": "English"}, {"text": "Other"}]],
+        "keyboard": [
+            [{"text": "Marathi"}, {"text": "English"}],
+            [{"text": "Economy"}, {"text": "Polity"}],
+            [{"text": "History"}, {"text": "Geography"}],
+            [{"text": "Other"}],
+        ],
         "resize_keyboard": True,
-        "one_time_keyboard": False
+        "one_time_keyboard": False,
     }
     payload = {"chat_id": ADMIN_ID, "text": text, "reply_markup": reply_markup}
     requests.post(url, json=payload)
@@ -108,11 +147,11 @@ def main():
         text = msg.get("text", "").strip()
         if not text:
             continue
-        
+
         if text in FILE_MAPPING:
             detected_command = text
             continue
-        
+
         # कोणतीही डुप्लिकेट टाळण्यासाठी फक्त मेसेज लिस्टमध्ये ॲड करा
         pending_questions.append(text)
 
@@ -136,28 +175,33 @@ def main():
         try:
             # गिटहबवरून फाईलचा करंट डेटा आणा
             repo_text, sha = get_repo_file(target_file)
-            
+
             # 📊 जुने प्रश्न मोजा (Old Count)
             old_count = count_questions(repo_text)
-            
-            # नवीन मेसेजेस कोणत्याही स्पेसशिवाय एकाखाली एक जोडणे
-            new_content = "\n".join(pending_questions)
-            if repo_text and not repo_text.endswith("\n"):
-                repo_text += "\n" + new_content
-            else:
-                repo_text += new_content
-            
-            # गिटहबवर सिंगल पुश (यामुळे 409 एरर किंवा री-अपलोड होणार नाही)
-            update_repo_file(target_file, repo_text, sha)
-            
+
+            # आधीच असलेले Duplicate प्रश्न वगळा
+            unique_questions = filter_non_duplicate_messages(repo_text, pending_questions)
+
+            if unique_questions:
+                # नवीन मेसेजेस कोणत्याही स्पेसशिवाय एकाखाली एक जोडणे
+                new_content = "\n".join(unique_questions)
+                if repo_text and not repo_text.endswith("\n"):
+                    repo_text += "\n" + new_content
+                else:
+                    repo_text += new_content
+
+                # गिटहबवर सिंगल पुश (यामुळे 409 एरर किंवा री-अपलोड होणार नाही)
+                update_repo_file(target_file, repo_text, sha)
+
             # 📊 नवीन टोटल काउंट
             total_count = count_questions(repo_text)
-            
+            added_count = total_count - old_count
+
             # 🎯 तुमच्या गरजेनुसार परफेक्ट रिप्लाय फॉरमॅट
             send_telegram(
                 f"✅ Questions add ho gaye in *{selected_file_key}.txt*\n"
                 f"📊 Previous questions: {old_count}\n"
-                f"📥 Newly added: {len(pending_questions)}\n"
+                f"📥 Newly added: {added_count}\n"
                 f"📈 Total questions now: {total_count}"
             )
         except Exception as e:
@@ -171,4 +215,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
